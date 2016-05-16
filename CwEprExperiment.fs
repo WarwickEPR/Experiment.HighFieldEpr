@@ -10,6 +10,7 @@ open FSharp.ViewModule.Validation
 open FSharp.Control.Reactive
 
 open Endorphin.Core
+open Endorphin.Utilities.TimeInterval
 open Endorphin.Instrument.TwickenhamSmc
 open Endorphin.Instrument.TwickenhamSmc.FieldSweep
 open Endorphin.Instrument.PicoScope5000
@@ -536,7 +537,7 @@ module CwEprExperiment =
     module private Sampling =
         
         /// Digitiser sample interval.
-        let private sampleInterval = Interval.fromMicroseconds 20<us>
+        let private sampleInterval = TimeInterval.fromMicroseconds 20<us>
         
         /// Digitiser vertical resolution.
         let private samplingResolution = Resolution_14bit
@@ -912,6 +913,10 @@ module CwEprExperiment =
     let private processSamples experiment =
         Sampling.samplesForAcquisition (parameters experiment)
         >> Observable.subscribe (SignalProcessor.accumulateSamples (signalProcessor experiment))
+
+
+    
+
 
     /// Performs the n-th scan part of the experiment.
     let private performScanPart n parameters scanPart experiment = async {

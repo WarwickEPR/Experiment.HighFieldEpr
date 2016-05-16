@@ -254,14 +254,12 @@ type CwEprViewModel() as self =
     let stopExperimentCommand =
         self.Factory.CommandSyncParamChecked(
             (function Running (_, cts) -> cts.Cancel() | _ -> ()), 
-            (fun _ -> self.IsPerformingExperiment), 
-            [ <@ self.IsPerformingExperiment @> ])
+            (fun _ -> self.IsPerformingExperiment))
 
     let stopAfterScanCommand =
         self.Factory.CommandSyncParamChecked(
             (function Running (experiment, _) -> CwEprExperiment.stopAfterScan experiment | _ -> ()), 
-            (fun _ -> self.IsPerformingExperiment), 
-            [ <@ self.IsPerformingExperiment @> ])
+            (fun _ -> self.IsPerformingExperiment))
 
     do // add property dependencies
         self.DependencyTracker.AddPropertyDependency(<@ self.IsConnected @>, <@ self.Connection @>)
