@@ -641,7 +641,7 @@ module CwEprExperiment =
             let detection = Parameters.detection parameters
             let inputs = channels |> List.map (fun channel -> (channel, sampleBuffer)) |> Array.ofList
 
-            Signal.adcCountsByBlock inputs acquisition
+            Signal.Block.adcCounts inputs acquisition
             |> Observable.map (fun block -> 
                 let blockLength = block.[0] |> Array.length
                 seq { for i in 0 .. blockLength - 1 ->
