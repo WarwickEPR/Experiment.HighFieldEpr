@@ -6,7 +6,13 @@ open System
 open FsXaml
 
 module App =
-    type App = XAML<"App.xaml">
+    type AppBase = XAML<"App.xaml">
+    
+    type App() =
+        inherit AppBase()
+
+        member app.Application_Startup(sender : obj, e : System.Windows.StartupEventArgs) =
+            MainWindow().Show()
 
     [<STAThread>]
     [<EntryPoint>]

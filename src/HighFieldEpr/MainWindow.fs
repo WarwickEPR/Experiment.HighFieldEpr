@@ -17,15 +17,13 @@ type MainWindowBase = XAML<"MainWindow.xaml">
 type MainWindow() =
     inherit MainWindowBase()
 
-    override window.OnInitialize() =
+    override window.OnClosing args =
         let ctx = window.DataContext :?> CwEprViewModel
 
-        window.Closing
-        |> Event.add (fun args ->
-            match ctx.Connection with
-            | Connected _ ->
-                let message = "Instruments are currently connected. Are you sure you wish to exit?"
-                let caption = "Warning: instruments connected"
-                let result = MessageBox.Show(message, caption, MessageBoxButton.YesNo)
-                if result = MessageBoxResult.No then args.Cancel <- true
-            | _ -> ())
+        match ctx.Connection with
+        | Connected _ ->
+            let message = "Instruments are currently connected. Are you sure you wish to exit?"
+            let caption = "Warning: instruments connected"
+            let result = MessageBox.Show(message, caption, MessageBoxButton.YesNo)
+            if result = MessageBoxResult.No then args.Cancel <- true
+        | _ -> ()
