@@ -12,15 +12,15 @@ open System.Windows.Media
 open System.Windows.Threading
 open FsXaml
 
-type MainWindow = XAML<"MainWindow.xaml">
+type MainWindowBase = XAML<"MainWindow.xaml">
 
-type MainWindowController() =
-    inherit WindowViewController<MainWindow>()
+type MainWindow() =
+    inherit MainWindowBase()
 
-    override x.OnLoaded window =
-        let ctx = window.Root.DataContext :?> CwEprViewModel
+    override window.OnInitialize() =
+        let ctx = window.DataContext :?> CwEprViewModel
 
-        window.Root.Closing
+        window.Closing
         |> Event.add (fun args ->
             match ctx.Connection with
             | Connected _ ->

@@ -11,4 +11,4 @@ module App =
     [<STAThread>]
     [<EntryPoint>]
     let main _ =
-        App().Root.Run()
+        App().Run()

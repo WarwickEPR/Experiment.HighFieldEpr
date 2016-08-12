@@ -11,7 +11,7 @@ nuget FSharp.Control.Reactive
 nuget csmpfit
 
 nuget Extended.Wpf.Toolkit
-nuget FsXaml.Wpf 0.9.9
+nuget FsXaml.Wpf
 nuget FsPickler.Json
 nuget OxyPlot.Wpf ~> 1.0 prerelease
 
