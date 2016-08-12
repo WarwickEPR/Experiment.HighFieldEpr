@@ -584,3 +584,7 @@ GITHUB
   remote: WarwickEPR/Endorphin.Core
     src/Endorphin.Core.Control.fs (c4defa89d25c303ea6fb0d51dcf882ba6abb036d)
     src/Endorphin.Core.Reactive.fs (c4defa89d25c303ea6fb0d51dcf882ba6abb036d)
+GROUP Build
+NUGET
+  remote: https://www.nuget.org/api/v2
+    FAKE (4.37.2)

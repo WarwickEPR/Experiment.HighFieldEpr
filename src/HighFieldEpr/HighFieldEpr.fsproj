@@ -447,21 +447,6 @@
           <Private>True</Private>
           <Paket>True</Paket>
         </Reference>
-        <Reference Include="PresentationCore">
-          <Paket>True</Paket>
-        </Reference>
-        <Reference Include="PresentationFramework">
-          <Paket>True</Paket>
-        </Reference>
-        <Reference Include="System.Xaml">
-          <Paket>True</Paket>
-        </Reference>
-        <Reference Include="System.Xml">
-          <Paket>True</Paket>
-        </Reference>
-        <Reference Include="WindowsBase">
-          <Paket>True</Paket>
-        </Reference>
       </ItemGroup>
     </When>
   </Choose>

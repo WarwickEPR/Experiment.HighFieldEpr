@@ -17,3 +17,7 @@ nuget OxyPlot.Wpf ~> 1.0 prerelease
 
 github WarwickEPR/Endorphin.Core src/Endorphin.Core.Control.fs
 github WarwickEPR/Endorphin.Core src/Endorphin.Core.Reactive.fs
+
+group Build
+    source https://nuget.org/api/v2
+    nuget FAKE
