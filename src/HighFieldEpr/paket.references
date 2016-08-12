@@ -1,0 +1,17 @@
+FSharp.Core
+
+Endorphin.Abstract
+Endorphin.Instrument.PicoTech.PicoScope5000
+Endorphin.Instrument.Twickenham.MagnetController
+
+FSharp.ViewModule.Core
+FSharp.Control.Reactive
+csmpfit
+
+Extended.Wpf.Toolkit
+FsXaml.Wpf
+FsPickler.Json
+OxyPlot.Wpf
+
+File:Endorphin.Core.Control.fs
+File:Endorphin.Core.Reactive.fs

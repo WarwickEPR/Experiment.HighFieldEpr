@@ -1,8 +1,9 @@
 // Copyright (c) University of Warwick. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
-namespace Endorphin.Experiment.HighFieldEpr
+namespace HighFieldEpr
 
 open System
+open System.Threading
 open Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols
 open MPFitLib
 
@@ -10,17 +11,15 @@ open FSharp.ViewModule.Validation
 open FSharp.Control.Reactive
 
 open Endorphin.Core
-open Endorphin.Utilities.Time
-open Endorphin.Instrument.TwickenhamSmc
-open Endorphin.Instrument.TwickenhamSmc.FieldSweep
-open Endorphin.Instrument.PicoScope5000
+open Endorphin.Abstract.Time
+open Endorphin.Instrument.Twickenham.MagnetController
+open Endorphin.Instrument.Twickenham.MagnetController.FieldSweep
+open Endorphin.Instrument.PicoTech.PicoScope5000
 
 /// Types and functions related to performing a CW EPR experiment.
 module CwEprExperiment =
-    
     [<AutoOpen>]
     module Model =
-        
         /// Indicates whether the field sweep is performed in the direction of increasing or decreasing field.
         type FieldSweepDirection = Increasing | Decreasing
 
@@ -42,7 +41,7 @@ module CwEprExperiment =
               Notes                    : Notes
               Date                     : DateTime
               MagnetControllerSettings : TwickenhamSmc.Settings }
-        
+
         /// Parameters for a part of a CW EPR scan.
         type ScanPartParameters =
             { InitialField     : decimal<T>
@@ -84,7 +83,7 @@ module CwEprExperiment =
         type RawData = Map<int * ScanPartParameters, CwEprSample array>
 
         /// CW EPR signal accumulated so far during an experiment.
-        type CwEprSignal = 
+        type CwEprSignal =
             { CompletedScans    : RawData
               AccumulatedSignal : CwEprSignalPoint array
               CurrentScan       : ScanPartInProgress option }
@@ -120,31 +119,31 @@ module CwEprExperiment =
 
         /// A CW EPR experiment which has been created from the given parameters and ready to be run against the
         /// hardware.
-        type CwEprExperiment = 
+        type CwEprExperiment =
              { Parameters              : CwEprExperimentParameters
                MagnetController        : MagnetController
                PicoScope               : PicoScope5000
                StatusChanged           : NotificationEvent<CwEprExperimentStatus>
                SignalProcessor         : CwEprSignalProcessor
-               StopAfterScanCapability : CancellationCapability }
+               StopAfterScanCapability : CancellationTokenSource }
 
     /// Functions related to CW EPR experiment parameters.
     module Parameters =
-        
+
         /// Returns the centre field.
         let centreField parameters = parameters.CentreField
-        
+
         /// Returns the sweep width.
         let sweepWidth parameters = parameters.SweepWidth
 
         /// Returns the field sweep direction.
         let fieldSweepDirection parameters = parameters.FieldSweepDirection
-        
+
         /// Returns the initial field.
         let initialField parameters =
             if fieldSweepDirection parameters = Increasing
             then (centreField parameters) - (sweepWidth parameters) / 2.0M
-            else (centreField parameters) + (sweepWidth parameters) / 2.0M 
+            else (centreField parameters) + (sweepWidth parameters) / 2.0M
 
         /// Returns the final field.
         let finalField parameters =
@@ -169,7 +168,7 @@ module CwEprExperiment =
 
         /// Returns the estimated experiment duration, not including magnet controller preparation.
         let experimentDuration parameters = (decimal <| numberOfScans parameters) * (scanDuration parameters)
-        
+
         /// Returns the experimental and sample notes.
         let notes parameters = parameters.Notes
 
@@ -180,7 +179,7 @@ module CwEprExperiment =
         let samplesPerPoint parameters = conversionTime parameters / 20<ms>
 
         /// Returns the initial field current direction and magnet controller step index.
-        let rec initialFieldIndex parameters = 
+        let rec initialFieldIndex parameters =
             let (currentDirection, stepIndex) =
                 initialField parameters
                 |> MagnetController.Settings.Convert.magneticFieldToStepIndex (magnetControllerSettings parameters)
@@ -204,7 +203,7 @@ module CwEprExperiment =
             let clip =
                 min    (MagnetController.Settings.Limit.upperField <| magnetControllerSettings parameters)
                 >> max (MagnetController.Settings.Limit.lowerField <| magnetControllerSettings parameters)
-                
+
             let initialField' = clip <| initialField parameters
             let finalField'   = clip <| finalField parameters
 
@@ -218,7 +217,7 @@ module CwEprExperiment =
             let digitise = MagnetController.Settings.Digitise.magneticField <| magnetControllerSettings parameters
             let initialField' = digitise <| initialField parameters
             let finalField'   = digitise <| finalField parameters
-                            
+
             let initial = initialField parameters
             let final   = finalField parameters
 
@@ -272,7 +271,7 @@ module CwEprExperiment =
 
         /// Validates the CW EPR experiment parameters.
         let validate = sweepWidthGreaterThanZero
-        
+
         /// Returns updated CW EPR experiment parameters with the specified centre field. The field range is then
         /// clipped and digitised according to the magnet controller settings.
         let withCentreField centreField parameters =
@@ -286,7 +285,7 @@ module CwEprExperiment =
             { parameters with SweepWidth = sweepWidth }
             |> clipField
             |> digitiseField
-        
+
         /// Returns updated CW EPR experiment parameters with the specified field sweep direction.
         let withFieldSweepDirection direction parameters =
             { parameters with FieldSweepDirection = direction }
@@ -304,7 +303,7 @@ module CwEprExperiment =
         let withConversionTime conversionTime (parameters : CwEprExperimentParameters) =
             { parameters with ConversionTime = conversionTime }
             |> conversionTimeIsMultipleOfMains
-        
+
         /// Returns updated CW EPR experiment parameters with the specified detection mode (single phase or quadrature).
         let withDetection detection parameters =
             { parameters with Detection = detection }
@@ -320,7 +319,7 @@ module CwEprExperiment =
 
         /// Returns updated CW EPR experiment parameters with the specified date stamp.
         let withDate date parameters = { parameters with Date = date }
-        
+
         /// Returns updated CW EPR experiment parameters with the given magnet controller settings. The magnetic field
         /// range and ramp rate are clipped and digitised according to the new magnet controller settings.
         let withMagnetControllerSettings settings parameters =
@@ -332,7 +331,7 @@ module CwEprExperiment =
 
         /// Creates CW EPR experiment parameters with the specified centre field, sweep width, ramp rate and magnet
         /// controller settings. By default, the sweep is in the direction of increasing field, the conversion time is
-        /// 20 ms and quadrature detection is enabled. 
+        /// 20 ms and quadrature detection is enabled.
         let create centreField sweepWidth rampRate magnetControllerSettings =
             { CentreField              = centreField
               SweepWidth               = sweepWidth
@@ -350,16 +349,16 @@ module CwEprExperiment =
             |> nearestCalibratedRampRate
 
     /// Functions related to CW EPR experiment notes.
-    module Notes = 
-        
+    module Notes =
+
         /// Returns the sample notes.
         let sampleNotes notes = notes.SampleNotes
 
         /// Returns the experiment notes.
         let experimentNotes notes = notes.ExperimentNotes
-        
+
         /// Returns updated notes with the specified sample notes.
-        let withSampleNotes sampleNotes notes = 
+        let withSampleNotes sampleNotes notes =
             { notes with SampleNotes = sampleNotes }
 
         /// Returns updated notes with the specified experiment notes.
@@ -368,7 +367,7 @@ module CwEprExperiment =
 
     /// Functions related to CW EPR experiment scan parts.
     module private ScanPart =
-        
+
         /// Returns the scan parts for the given CW EPR experiment parameters.
         let fromExperimentParameters parameters =
             let (initialCurrentDirection, initialStepIndex) = Parameters.initialFieldIndex parameters
@@ -389,7 +388,7 @@ module CwEprExperiment =
                       RampRate         = Parameters.rampRate parameters
                       CurrentDirection = initialCurrentDirection
                       ConversionTime   = Parameters.conversionTime parameters }
-                
+
                 let second =
                     { InitialField     = staticField
                       FinalField       = Parameters.finalField parameters
@@ -419,12 +418,12 @@ module CwEprExperiment =
 
         /// Returns the number of samples per CW EPR signal point for the given scan part.
         let samplesPerPoint scanPart = (conversionTime scanPart) / 20<ms>
-        
+
         /// Returns the estimated magnetic field ramp duration for the given scan part.
         let rampDuration scanPart = (abs (finalField scanPart - initialField scanPart)) / (rampRate scanPart)
 
         /// Returns the initial field magnet controller step index for the given scan part.
-        let initialFieldIndex magnetControllerSettings = 
+        let initialFieldIndex magnetControllerSettings =
             initialField >> MagnetController.Settings.Convert.magneticFieldToStepIndex magnetControllerSettings >> snd
 
         /// Returns the final field magnet controller step index for the given scan part.
@@ -446,18 +445,18 @@ module CwEprExperiment =
             <| rampRateIndex     magnetControllerSettings scanPart
 
         /// Returns the number of CW EPR signal points in the given magnet controller scan part.
-        let numberOfPoints scanPart = 
+        let numberOfPoints scanPart =
             (abs <| initialField scanPart - finalField scanPart) / ((rampRate scanPart) * (conversionTimeInSeconds scanPart))
             |> floor |> int
 
         /// Returns the magnetic field for the n-th CW EPR signal point in the given scan part.
         let magneticFieldForPoint scanPart n =
-            let stepPerSample = 
+            let stepPerSample =
                 if initialField scanPart < finalField scanPart
                 then +0.020M<s> * (rampRate scanPart)
                 else -0.020M<s> * (rampRate scanPart)
 
-            seq { for sample in 0 .. samplesPerPoint scanPart - 1 -> 
+            seq { for sample in 0 .. samplesPerPoint scanPart - 1 ->
                     initialField scanPart + (decimal (sample + n * samplesPerPoint scanPart)) * stepPerSample }
             |> Seq.average
 
@@ -468,34 +467,34 @@ module CwEprExperiment =
 
     /// Functions related to shunt voltage ramp fitting.
     module private ShuntVoltageRamp =
-        
+
         /// Returns the initial voltage of the shunt voltage ramp.
         let initialVoltage ramp = ramp.InitialVoltage
 
         /// Returns the final voltage of the shunt voltage ramp.
         let finalVoltage ramp = ramp.FinalVoltage
-        
+
         /// Returns the duration of the shunt voltage ramp.
         let duration ramp = ramp.Duration
 
         /// Returns the start time of the shunt voltage ramp.
         let startTime ramp = ramp.StartTime
-        
+
         /// Returns the finish time for the shunt voltage ramp
         let finishTime ramp = (startTime ramp) + (duration ramp)
-        
+
         /// Computes the voltage at the specified time for the given shunt voltage ramp.
         let voltage ramp = function
             | x when x <= startTime ramp  -> initialVoltage ramp
             | x when x >= finishTime ramp -> finalVoltage ramp
-            | x -> 
+            | x ->
                 initialVoltage ramp
-                + ((x - startTime ramp) * (finalVoltage ramp - initialVoltage ramp) 
+                + ((x - startTime ramp) * (finalVoltage ramp - initialVoltage ramp)
                     / duration ramp)
 
         /// Returns the expected shunt voltage ramp for the given scan part.
         let expectedForScanPart scanPart magnetControllerSettings =
-            let magneticFieldToShuntVoltage = 
+            let magneticFieldToShuntVoltage =
                 MagnetController.Settings.Convert.magneticFieldToShuntVoltage magnetControllerSettings
                 >> snd >> decimal >> float >> LanguagePrimitives.FloatWithMeasure<V>
 
@@ -509,14 +508,14 @@ module CwEprExperiment =
         let fitWithFixedDuration guess (data : (float<s> * float<V>) array) =
             let rampFunc parameters (dys : float array) (_ : System.Collections.Generic.IList<float> []) (data : obj) =
                 match parameters with
-                | [| initial ; final ; start |] -> 
+                | [| initial ; final ; start |] ->
                     let data' = data :?> (float * float) array
-                    let ramp = 
+                    let ramp =
                         { InitialVoltage = initial * 1.0<V>
-                          FinalVoltage   = final * 1.0<V> 
+                          FinalVoltage   = final * 1.0<V>
                           StartTime      = start * 1.0<s>
                           Duration       = duration guess }
-                    
+
                     data' |> Array.iteri (fun i (x, y) ->
                         let y' = voltage ramp (x * 1.0<s>)
                         dys.[i] <- float (1.0<V> * y - y'))
@@ -529,31 +528,31 @@ module CwEprExperiment =
             MPFit.Solve(mp_func(rampFunc), Array.length data, 3, parameters, null, null, data, &result) |> ignore
 
             { InitialVoltage = parameters.[0] * 1.0<V>
-              FinalVoltage   = parameters.[1] * 1.0<V> 
+              FinalVoltage   = parameters.[1] * 1.0<V>
               StartTime      = parameters.[2] * 1.0<s>
               Duration       = duration guess }
-    
-    /// Functions and parameters related to signal sampling.        
+
+    /// Functions and parameters related to signal sampling.
     module private Sampling =
-        
+
         /// Digitiser sample interval.
         let private sampleInterval = Interval.from_us 20<us>
-        
+
         /// Digitiser vertical resolution.
         let private samplingResolution = Resolution_14bit
-        
+
         /// Digitiser downsampling mode.
         let private downsamplingMode = Averaged
-        
+
         /// Downsampling ratio.
         let private downsamplingRatio = 1000u // downsample data to 20 ms per sample to average mains hum
-        
+
         /// Sample buffer.
         let private sampleBuffer = AveragedBuffer
-        
+
         /// Magnetic field shunt voltage input channel.
         let private magneticFieldChannel = ChannelA
-        
+
         /// EPR signal channels.
         let private signalChannels parameters =
             if Parameters.detection parameters = Quadrature
@@ -565,7 +564,7 @@ module CwEprExperiment =
             let settings = Parameters.magnetControllerSettings parameters
             let (initialCurrentDirection, initialStepIndex) = Parameters.initialFieldIndex parameters
             let (finalCurrentDirection,   finalStepIndex  ) = Parameters.finalFieldIndex   parameters
-            
+
             let initialShuntVoltage = MagnetController.Settings.Convert.stepIndexToShuntVoltage settings initialStepIndex
             let finalShuntVoltage   = MagnetController.Settings.Convert.stepIndexToShuntVoltage settings finalStepIndex
             let shuntOffset         = MagnetController.Settings.shuntVoltageOffset settings
@@ -575,41 +574,41 @@ module CwEprExperiment =
                 if initialCurrentDirection = finalCurrentDirection
                 then min initialShuntVoltage finalShuntVoltage
                 else min initialShuntVoltage finalShuntVoltage |> min shuntOffset
-                
+
             let maximumShuntVoltage =
                 if initialCurrentDirection = finalCurrentDirection
                 then max initialShuntVoltage finalShuntVoltage
                 else max initialShuntVoltage finalShuntVoltage |> max shuntOffset
 
             (minimumShuntVoltage - shuntNoise, maximumShuntVoltage + shuntNoise)
-        
+
         /// Returns magnetic field channel input voltage offset.
         let private magneticFieldChannelOffset parameters =
             let (minimumVoltage, maximumVoltage) = shuntVoltageRange parameters
             - 1.0f<V> * (float32 <| Decimal.Round((minimumVoltage + maximumVoltage) / 2.0M<V>, 1))
-           
+
         /// Returns the magnetic field channel input voltage range.
-        let private magneticFieldChannelRange parameters = 
-            let offset = magneticFieldChannelOffset parameters 
-            
-            let minimumForOffset = 
-                offset 
+        let private magneticFieldChannelRange parameters =
+            let offset = magneticFieldChannelOffset parameters
+
+            let minimumForOffset =
+                offset
                 |> Range.minimumForOffsetVoltage
                 |> function
                     | Some range' -> range'
                     | None        -> failwithf "Required shunt voltage offset (%f V) exceeds maximum." offset
-            
+
             let (minimumVoltage, maximumVoltage) = shuntVoltageRange parameters
 
             let minimumForRange =
                 abs (1.0f<V> * (float32 (decimal minimumVoltage)) + offset)
                 |> max (abs (1.0f<V> * (float32 (decimal maximumVoltage)) + offset))
                 |> Range.minimumForVoltage
-                
+
             [ minimumForOffset ; minimumForRange ] |> List.maxBy Range.voltage
 
         /// Returns the conversion frunction from ADC counts to voltage for the magnetic field channel.
-        let shuntAdcToVoltage parameters = 
+        let shuntAdcToVoltage parameters =
             Voltage.fromAdcCounts
             <| samplingResolution
             <| magneticFieldChannelRange parameters
@@ -617,7 +616,7 @@ module CwEprExperiment =
 
         /// Signal channel range.
         let private signalChannelRange  = Range_10V
-        
+
         /// Signal channel offset.
         let private signalChannelOffset = 0.0f<V>
 
@@ -642,22 +641,22 @@ module CwEprExperiment =
             let inputs = channels |> List.map (fun channel -> (channel, sampleBuffer)) |> Array.ofList
 
             Signal.Block.adcCounts inputs acquisition
-            |> Observable.map (fun block -> 
+            |> Observable.map (fun block ->
                 let blockLength = block.[0] |> Array.length
                 seq { for i in 0 .. blockLength - 1 ->
                         { MagneticFieldShuntAdc = block.[0].[i]
                           ReSignalAdc           = block.[1].[i]
                           ImSignalAdc           = match detection with Quadrature -> block.[2].[i] | SinglePhase -> 0s } })
-      
+
     /// Functions related to signal processing and accumulation.
     module Signal =
-        
+
         /// Returns the raw data for all completed scans in the signal.
         let private completedScans signal = signal.CompletedScans
-        
+
         /// Returns the accumulated CW EPR signal points for the scans completed so far.
         let private accumulatedSignal signal = signal.AccumulatedSignal
-        
+
         /// Returns the samples for the scan currently being accumulated in the signal.
         let private currentScan signal = signal.CurrentScan
 
@@ -678,27 +677,27 @@ module CwEprExperiment =
 
         /// Returns the fitted shunt voltage ramp for the given scan part and samples.
         let private shuntVoltageRamp parameters (scanPart, samples : ResizeArray<_>) =
-            let shuntToAdcVoltage = 
+            let shuntToAdcVoltage =
                 Sampling.shuntAdcToVoltage parameters
-                >> float >> LanguagePrimitives.FloatWithMeasure<V>  
+                >> float >> LanguagePrimitives.FloatWithMeasure<V>
 
             let estimatedRamp = ShuntVoltageRamp.expectedForScanPart scanPart (Parameters.magnetControllerSettings parameters)
-            
+
             samples
             |> Seq.mapi (fun i sample -> (float i * 0.020<s>, shuntToAdcVoltage sample.MagneticFieldShuntAdc))
             |> Array.ofSeq
-            |> ShuntVoltageRamp.fitWithFixedDuration estimatedRamp 
+            |> ShuntVoltageRamp.fitWithFixedDuration estimatedRamp
 
         /// Returns the CW EPR signal points for the given scan part and samples.
         let private scanSignal parameters (scanPart, samples : ResizeArray<_>) =
             let ramp = shuntVoltageRamp parameters (scanPart, samples)
             let length = samples.Count
 
-            let skipCount = 
+            let skipCount =
                 int (round (ShuntVoltageRamp.startTime ramp / 0.020<s>)) - 1 |> min length |> max 0
-            
-            let takeCount = 
-                (ScanPart.numberOfPoints scanPart * ScanPart.samplesPerPoint scanPart) 
+
+            let takeCount =
+                (ScanPart.numberOfPoints scanPart * ScanPart.samplesPerPoint scanPart)
                 |> min (length - skipCount) |> max 0
 
             samples
@@ -725,7 +724,7 @@ module CwEprExperiment =
         /// Computes the start index signal due to the given scan part in the CW EPR signal point array.
         let private scanPartSignalStartIndex parameters scanPart =
             match parameters |> ScanPart.fromExperimentParameters with
-            | OnePart first          
+            | OnePart first
             | TwoPart (first, _)      when first  = scanPart -> 0
             | TwoPart (first, second) when second = scanPart -> ScanPart.numberOfPoints first
             | _                                              -> failwith "Scan part not part of given experiment parameters."
@@ -735,7 +734,7 @@ module CwEprExperiment =
             let offset = scanPartSignalStartIndex parameters scanPart
             scanSignal parameters (scanPart, samples)
             |> Seq.iteri (fun i x ->
-                accumulatedSignal.[offset + i] <- 
+                accumulatedSignal.[offset + i] <-
                     { accumulatedSignal.[offset + i] with
                         ReSignalIntensity = accumulatedSignal.[offset + i].ReSignalIntensity + x.ReSignalIntensity
                         ImSignalIntensity = accumulatedSignal.[offset + i].ImSignalIntensity + x.ImSignalIntensity })
@@ -746,8 +745,8 @@ module CwEprExperiment =
             match currentScan signal with
             | Some (n, scanPart, samples) ->
                 accumulateScanPart parameters (accumulatedSignal signal) (scanPart, samples)
-                { signal with 
-                    CurrentScan    = None 
+                { signal with
+                    CurrentScan    = None
                     CompletedScans = completedScans signal |> Map.add (n, scanPart) (Array.ofSeq samples) }
             | None -> failwith "Cannot complete scan when one is not in progress."
 
@@ -761,14 +760,14 @@ module CwEprExperiment =
         /// copy of the scan currently in progress.
         let snapshot parameters signal =
             (Array.copy signal.AccumulatedSignal,
-                currentScan signal |> Option.map (fun (n, scanPart, samples) -> n, scanPart, ResizeArray<_>(samples)))            
+                currentScan signal |> Option.map (fun (n, scanPart, samples) -> n, scanPart, ResizeArray<_>(samples)))
 
         /// Returns a copy of the raw data accumulated so far in the CW EPR signal.
-        let rawDataCopy signal = 
+        let rawDataCopy signal =
             match currentScan signal with
             | None -> completedScans signal |> Map.map (fun _ scan -> Array.copy scan)
             | Some (n, scanPart, samples) ->
-                completedScans signal 
+                completedScans signal
                 |> Map.map (fun _ scan -> Array.copy scan)
                 |> Map.add (n, scanPart) (Array.init samples.Count (fun i -> samples.[i]))
 
@@ -785,7 +784,7 @@ module CwEprExperiment =
         /// Returns the CSV rows for the CW EPR signal points.
         let signalRows points = seq {
             yield "Magnetic field (T), Real signal, Imaginary signal"
-            
+
             yield! points
             |> Seq.ofArray
             |> Seq.map (fun signal ->
@@ -793,16 +792,16 @@ module CwEprExperiment =
                   string <| signal.ReSignalIntensity
                   string <| signal.ImSignalIntensity ]
                 |> String.concat ", " ) }
-        
+
         /// Returns the CSV rows for the CW EPR signal raw data.
         let rawDataRows (rawData : RawData) = seq {
             yield "Scan, Current direction, Time (s), Shunt ADC, Real ADC, Imaginary ADC"
-            
+
             yield! rawData
             |> Map.toSeq
             |> Seq.collect (fun ((n, scanPart), samples) ->
                 samples
-                |> Seq.mapi (fun i sample -> 
+                |> Seq.mapi (fun i sample ->
                     [ string n
                       (match ScanPart.currentDirection scanPart with Forward -> "Forward" | Reverse -> "Reverse")
                       string <| (float i * 0.020)
@@ -812,8 +811,8 @@ module CwEprExperiment =
                     |> String.concat ", ")) }
 
     /// Functions for posting samples to a signal processor agent and getting snapshots of the signal.
-    module SignalProcessor = 
-      
+    module SignalProcessor =
+
         /// Creates a signal processor agent initialised with an empty data set for the given CW EPR
         /// experiment parameters.
         let create parameters =
@@ -821,21 +820,21 @@ module CwEprExperiment =
                 let rec loop signal = async {
                     let! message = mailbox.Receive()
                     match message with
-                    | SignalUpdate signalUpdate -> 
+                    | SignalUpdate signalUpdate ->
                         return! loop (Signal.update parameters signal signalUpdate)
-                
+
                     | SignalSnapshotRequest replyChannel ->
                         Signal.snapshot parameters signal |> replyChannel.Reply
                         return! loop signal
-                
+
                     | RawDataRequest replyChannel ->
                         Signal.rawDataCopy signal |> replyChannel.Reply
                         return! loop signal }
-            
+
                 loop (Signal.empty parameters))
 
             CwEprSignalProcessor(agent, parameters)
-        
+
         /// Posts a block of samples for the scan part currently in progress to the signal processor.
         let accumulateSamples (CwEprSignalProcessor (agent, _)) samples =
             SamplesAvailable samples |> SignalUpdate |> agent.Post
@@ -850,11 +849,11 @@ module CwEprExperiment =
 
         /// Gets a snapshot of the current signal from the signal processor.
         let getSnapshot (CwEprSignalProcessor (agent, parameters)) = async {
-            let! (accumulatedSignal, scanPart) = SignalSnapshotRequest |> agent.PostAndAsyncReply 
+            let! (accumulatedSignal, scanPart) = SignalSnapshotRequest |> agent.PostAndAsyncReply
             match scanPart with
             | Some (_, scanPart, samples) -> Signal.accumulateScanPart parameters accumulatedSignal (scanPart, samples)
-            | None                        -> () 
-            
+            | None                        -> ()
+
             return accumulatedSignal }
 
         /// Gets a copy of the raw data from the signal processor.
@@ -867,7 +866,7 @@ module CwEprExperiment =
           PicoScope               = picoScope
           StatusChanged           = NotificationEvent<_>()
           SignalProcessor         = SignalProcessor.create parameters
-          StopAfterScanCapability = new CancellationCapability() }
+          StopAfterScanCapability = new CancellationTokenSource () }
 
     /// Gets the signal processor for the experiment.
     let private signalProcessor experiment = experiment.SignalProcessor
@@ -877,7 +876,7 @@ module CwEprExperiment =
 
     /// Gets the digitiser for the experiment.
     let private picoScope experiment = experiment.PicoScope
-    
+
     /// Sets the experiment to stop after the current scan.
     let stopAfterScan experiment = experiment.StopAfterScanCapability.Cancel()
 
@@ -897,7 +896,7 @@ module CwEprExperiment =
     let parameters experiment = experiment.Parameters
 
     /// Gets an observable sequence of status updates for the experiment.
-    let status experiment = 
+    let status experiment =
         experiment.StatusChanged.Publish
         |> Observable.fromNotificationEvent
 
@@ -915,7 +914,7 @@ module CwEprExperiment =
         >> Observable.subscribe (SignalProcessor.accumulateSamples (signalProcessor experiment))
 
 
-    
+
 
 
     /// Performs the n-th scan part of the experiment.
@@ -931,17 +930,17 @@ module CwEprExperiment =
         let! waitToPrepare = FieldSweep.waitToPrepare fieldSweep |> Async.StartChild
         let! sweepHandle   = FieldSweep.prepareAsChild fieldSweep
         do! waitToPrepare
-        
+
         use __ = acquisition |> processSamples experiment
         let! waitForStreaming = Acquisition.waitToStart acquisition |> Async.StartChild
         let! acquisitionHandle = Acquisition.startAsChild acquisition
         do! waitForStreaming
         do! Async.Sleep 10000
         FieldSweep.setReadyToSweep fieldSweep
-        
+
         let delay = 10000 + int (scanDuration * 1000.0M</s>)
         do! Async.Sleep delay
-        do! Acquisition.stopAndFinish acquisitionHandle |> Async.Ignore 
+        do! Acquisition.stopAndFinish acquisitionHandle |> Async.Ignore
         SignalProcessor.completeScanPart (signalProcessor experiment) }
 
     /// Performs the n-th scan of the experiment.
@@ -951,7 +950,7 @@ module CwEprExperiment =
         let streamingParameters = Sampling.streamingParameters (parameters experiment)
 
         match scanParts with
-        | OnePart scanPart -> 
+        | OnePart scanPart ->
             do! performScanPart n streamingParameters scanPart experiment
         | TwoPart (first, second) ->
             do! performScanPart n streamingParameters first  experiment
@@ -959,7 +958,7 @@ module CwEprExperiment =
 
     /// Recursively performs the scans from n up to the end of the experiment.
     let rec private performScansFrom n experiment = async {
-        do! peformScan n experiment 
+        do! peformScan n experiment
         if n < Parameters.numberOfScans (parameters experiment) then
             if   isSetToStopAfterScan experiment
             then StoppedAfterScan n |> triggerStatusChanged experiment
@@ -974,7 +973,7 @@ module CwEprExperiment =
             do! performScansFrom 1 experiment }
 
         Async.StartWithContinuations (experimentWorkflow,
-            (fun () -> 
+            (fun () ->
                 FinishedExperiment |> triggerStatusChanged experiment
                 triggerCompleted experiment
                 resultChannel.RegisterResult ExperimentCompleted),
@@ -986,7 +985,7 @@ module CwEprExperiment =
                 triggerCompleted experiment
                 resultChannel.RegisterResult ExperimentCancelled),
             cancellationToken)
-        
+
         resultChannel.AwaitResult()
 
     /// Gets a copy of the latest raw data for the experiment.

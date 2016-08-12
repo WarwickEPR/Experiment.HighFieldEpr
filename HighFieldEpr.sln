@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{B8F11497-0E11-47D8-884A-65D39351F410}"
+	ProjectSection(SolutionItems) = preProject
+		LICENSE.txt = LICENSE.txt
+		paket.dependencies = paket.dependencies
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{DC63FD57-8C46-4D7A-B0F7-4F73801DA7FD}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "HighFieldEpr", "src\HighFieldEpr\HighFieldEpr.fsproj", "{2250C03C-40BA-4592-B424-28E7D7A2C79A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2250C03C-40BA-4592-B424-28E7D7A2C79A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2250C03C-40BA-4592-B424-28E7D7A2C79A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2250C03C-40BA-4592-B424-28E7D7A2C79A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2250C03C-40BA-4592-B424-28E7D7A2C79A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

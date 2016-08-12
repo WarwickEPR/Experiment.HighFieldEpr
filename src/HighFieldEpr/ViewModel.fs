@@ -1,6 +1,6 @@
 // Copyright (c) University of Warwick. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information.
 
-namespace Endorphin.Experiment.HighFieldEpr
+namespace HighFieldEpr
 
 open System
 open System.IO
@@ -12,7 +12,7 @@ open Microsoft.Win32
 
 open FsXaml
 open FSharp.ViewModule
-open Nessos.FsPickler.Json
+open MBrace.FsPickler.Json
 
 open FSharp.Control.Reactive
 open OxyPlot
@@ -20,8 +20,8 @@ open OxyPlot
 open Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols
 
 open Endorphin.Core
-open Endorphin.Instrument.TwickenhamSmc
-open Endorphin.Instrument.PicoScope5000
+open Endorphin.Instrument.Twickenham.MagnetController
+open Endorphin.Instrument.PicoTech.PicoScope5000
 open CwEprExperiment
 
 /// Current state of the CW EPR experiment UI.
@@ -43,55 +43,55 @@ type CwEprViewModel() as self =
     let serialiser = FsPickler.CreateJsonSerializer (indent=true)
 
     /// Magnet controller settings.
-    let magnetControllerSettings = 
+    let magnetControllerSettings =
         { TwickenhamSmc.HardwareParameters =
             { MaximumCurrent = 20.0M<A>
               CalibratedRampRates =
-                [ 0.00020; 0.00024; 0.00026; 0.00030; 0.00036; 0.00042; 0.00048; 0.00054; 
+                [ 0.00020; 0.00024; 0.00026; 0.00030; 0.00036; 0.00042; 0.00048; 0.00054;
                   0.00064; 0.00072; 0.00084; 0.00098; 0.00110; 0.00130; 0.00150; 0.00170;
-                  0.0020;  0.0024;  0.0026;  0.0030;  0.0036;  0.0042;  0.0048;  0.0054; 
+                  0.0020;  0.0024;  0.0026;  0.0030;  0.0036;  0.0042;  0.0048;  0.0054;
                   0.0064;  0.0072;  0.0084;  0.0098;  0.0110;  0.0130;  0.0150;  0.0170;
-                  0.020;   0.024;   0.026;   0.030;   0.036;   0.042;   0.048;   0.054; 
+                  0.020;   0.024;   0.026;   0.030;   0.036;   0.042;   0.048;   0.054;
                   0.064;   0.072;   0.084;   0.098;   0.110;   0.130;   0.150;   0.170;
-                  0.20;    0.24;    0.26;    0.30;    0.36;    0.42;    0.48;    0.54; 
-                  0.64;    0.72;    0.84;    0.98;    1.10;    1.30;    1.50;    1.70; 
+                  0.20;    0.24;    0.26;    0.30;    0.36;    0.42;    0.48;    0.54;
+                  0.64;    0.72;    0.84;    0.98;    1.10;    1.30;    1.50;    1.70;
                   2.0 ]
                 |> List.map (fun x -> (decimal x) * 1.0M<A/s>) }
-              
-          TwickenhamSmc.Limits = 
+
+          TwickenhamSmc.Limits =
             { RampRateLimit    = 0.1M<A/s>
               TripVoltageLimit = 2.5M<V>
               CurrentLimit     = 17.5M<A> }
-          
+
           TwickenhamSmc.FieldCalibration =
             { StaticField       = 14.14421M<T>
               LinearCoefficient = -0.002833M<T/A> }
-          
-          TwickenhamSmc.ShuntCalibration = 
+
+          TwickenhamSmc.ShuntCalibration =
             { VoltageOffset     = 0.00218M<V>
-              LinearCoefficient = 0.3985M<V/A> 
+              LinearCoefficient = 0.3985M<V/A>
               RmsVoltageNoise   = 0.100M<V> }
-      
+
           TwickenhamSmc.LastUpdated = new DateTime(2016, 1, 26) }
 
     /// Default experiment parameters.
-    let defaultParameters = 
+    let defaultParameters =
         Parameters.create (14.146M<T> + 0.005M<T>) (0.01M<T>) (0.020M<A/s> * 0.002845M<T/A>)
         <| magnetControllerSettings
-    
+
     /// Real signal part data series.
     let reSeries = new Series.LineSeries(Color=OxyColors.Navy, StrokeThickness=1.5)
-    
+
     /// Imaginary signal part data series.
     let imSeries = new Series.LineSeries(Color=OxyColors.IndianRed, StrokeThickness=1.5)
-    
+
     /// Default experiment plot model.
-    let defaultPlotModel = 
+    let defaultPlotModel =
         let model = new PlotModel()
         model.Series.Add reSeries
         model.Series.Add imSeries
         model
-        
+
     // Backing properties.
     let experimentParameters = self.Factory.Backing(<@ self.ExperimentParameters @>, defaultParameters, Parameters.validate)
     let notes                = self.Factory.Backing(<@ self.Notes @>, { ExperimentNotes = "" ; SampleNotes = "" })
@@ -119,10 +119,10 @@ type CwEprViewModel() as self =
         let (magnetController, picoScope) =
             match self.Connection with
             | Connected (magnetController, picoScope) -> (magnetController, picoScope)
-            | Disconnected                            -> failwith "No connection." 
-        
+            | Disconnected                            -> failwith "No connection."
+
         self.Connection <- Disconnected
-        
+
         do! Async.SwitchToThreadPool()
         do! MagnetController.closeInstrument magnetController
         do! PicoScope.close picoScope }
@@ -132,19 +132,19 @@ type CwEprViewModel() as self =
         match self.ExperimentState with
         | Finished (parameters, signal, rawData) ->
             let saveFile = new SaveFileDialog (Filter="CW EPR experiment|*.cwepr")
-            let result = saveFile.ShowDialog() 
+            let result = saveFile.ShowDialog()
             if result.HasValue && result.Value then
                 use paramsFile = new StreamWriter (saveFile.FileName)
                 parameters |> Parameters.withNotes self.Notes |> serialiser.PickleToString |> paramsFile.Write
 
                 use dataFile = new StreamWriter (Path.ChangeExtension(saveFile.FileName, "csv"))
                 Signal.signalRows signal |> Seq.iter dataFile.WriteLine
-                
+
                 let rawPath = Path.GetDirectoryName saveFile.FileName + "\\" + Path.GetFileNameWithoutExtension saveFile.FileName + "_raw.csv"
                 use rawFile = new StreamWriter (rawPath)
                 Signal.rawDataRows rawData |> Seq.iter rawFile.WriteLine
 
-        | _ -> "No data to save." |> MessageBox.Show |> ignore 
+        | _ -> "No data to save." |> MessageBox.Show |> ignore
 
     /// Loads parameters from a user-specified CW EPR experiment parameters file.
     let loadParameters () =
@@ -155,12 +155,12 @@ type CwEprViewModel() as self =
                 use paramsFile = new StreamReader (openFile.FileName)
                 let parameters = paramsFile.ReadToEnd() |> serialiser.UnPickleOfString
                 self.ExperimentParameters <- parameters |> Parameters.withMagnetControllerSettings magnetControllerSettings
-                self.Notes                <- parameters |> Parameters.notes 
+                self.Notes                <- parameters |> Parameters.notes
 
         else "Cannot load experiment parameters while an experiment is running." |> MessageBox.Show |> ignore
-    
+
     /// Resets the plot axes to auto-scale.
-    let resetAxes () = 
+    let resetAxes () =
         self.PlotModel.ResetAllAxes()
         self.PlotModel.InvalidatePlot false
 
@@ -175,9 +175,9 @@ type CwEprViewModel() as self =
             match self.Connection with
             | Connected (magnetController, picoScope) -> (magnetController, picoScope)
             | Disconnected                            -> failwith "No connection."
-        
+
         let experiment = CwEprExperiment.create parameters magnetController picoScope
-        
+
         use __ =
             CwEprExperiment.status experiment
             |> Observable.observeOnContext ui
@@ -189,12 +189,12 @@ type CwEprViewModel() as self =
             | None -> ()
             | Some signal ->
                 points.Clear()
-                
+
                 signal
                 |> Seq.map (fun (x : decimal<T>, y : decimal) -> new DataPoint(float (decimal x), float y))
                 |> points.AddRange
 
-        use __ = 
+        use __ =
             Observable.interval (TimeSpan.FromMilliseconds 1000.0)
             |> Observable.flatmapAsync (fun _ -> CwEprExperiment.signalSnapshot experiment)
             |> Observable.observeOnContext ui
@@ -220,9 +220,9 @@ type CwEprViewModel() as self =
 
         do! Async.SwitchToContext ui
         self.ExperimentState <- Finished (parameters |> Parameters.withNotes self.Notes, signal, rawData) }
-    
+
     // create backing properties UI commands
-    
+
     let connectCommand =
         self.Factory.CommandAsyncChecked(
             connect,
@@ -253,12 +253,12 @@ type CwEprViewModel() as self =
 
     let stopExperimentCommand =
         self.Factory.CommandSyncParamChecked(
-            (function Running (_, cts) -> cts.Cancel() | _ -> ()), 
+            (function Running (_, cts) -> cts.Cancel() | _ -> ()),
             (fun _ -> self.IsPerformingExperiment))
 
     let stopAfterScanCommand =
         self.Factory.CommandSyncParamChecked(
-            (function Running (experiment, _) -> CwEprExperiment.stopAfterScan experiment | _ -> ()), 
+            (function Running (experiment, _) -> CwEprExperiment.stopAfterScan experiment | _ -> ()),
             (fun _ -> self.IsPerformingExperiment))
 
     do // add property dependencies
@@ -277,12 +277,12 @@ type CwEprViewModel() as self =
 
         self.DependencyTracker.AddPropertyDependency(<@ self.SampleNotes @>,     <@ self.Notes @>)
         self.DependencyTracker.AddPropertyDependency(<@ self.ExperimentNotes @>, <@ self.Notes @>)
-        
+
         self.DependencyTracker.AddPropertyDependency(<@ self.IsPerformingExperiment @>, <@ self.ExperimentState @>)
-        self.DependencyTracker.AddPropertyDependencies(<@@ self.IsReadyToStart @@>, 
+        self.DependencyTracker.AddPropertyDependencies(<@@ self.IsReadyToStart @@>,
             [ <@@ self.IsConnected @@> ; <@@ self.IsPerformingExperiment @@> ])
 
-    member x.ExperimentParameters 
+    member x.ExperimentParameters
         with get()     = experimentParameters.Value
         and  set value = experimentParameters.Value <- value
 
@@ -299,9 +299,9 @@ type CwEprViewModel() as self =
     member x.ImPoints : ResizeArray<DataPoint> = imSeries.Points
 
     member x.IsPerformingExperiment = x.ExperimentState |> (function Running _ -> true | _ -> false)
-    member x.IsReadyToStart = x.IsConnected && (not x.IsPerformingExperiment) 
+    member x.IsReadyToStart = x.IsConnected && (not x.IsPerformingExperiment)
 
-    member x.CentreField 
+    member x.CentreField
         with get()     = Parameters.centreField x.ExperimentParameters
         and  set value = x.ExperimentParameters <- Parameters.withCentreField value x.ExperimentParameters
 
@@ -310,24 +310,24 @@ type CwEprViewModel() as self =
         and  set value = x.ExperimentParameters <- Parameters.withSweepWidth value x.ExperimentParameters
 
     member x.FieldSweepDirection
-        with get() = 
+        with get() =
             Parameters.fieldSweepDirection x.ExperimentParameters
             |> (function Model.Increasing -> 0 | _ -> 1)
 
-        and set value = 
-            x.ExperimentParameters <- 
+        and set value =
+            x.ExperimentParameters <-
                 if value = 0
                 then Parameters.withFieldSweepDirection Model.Increasing x.ExperimentParameters
                 else Parameters.withFieldSweepDirection Model.Decreasing x.ExperimentParameters
 
     member x.RampRateIndex
-        with get() = 
+        with get() =
             (Parameters.rampRate x.ExperimentParameters)
                 / (abs <| MagnetController.Settings.linearFieldCoefficient magnetControllerSettings)
             |> MagnetController.Settings.RampRate.nearestIndex magnetControllerSettings
 
-        and set value = 
-            let rampRate = 
+        and set value =
+            let rampRate =
                 (MagnetController.Settings.RampRate.fromIndex magnetControllerSettings value)
                 * (abs <| MagnetController.Settings.linearFieldCoefficient magnetControllerSettings)
             x.ExperimentParameters <- Parameters.withRampRate rampRate x.ExperimentParameters
@@ -338,7 +338,7 @@ type CwEprViewModel() as self =
 
     member x.QuadratureDetectionEnabled
         with get()     = (Parameters.detection x.ExperimentParameters = Quadrature)
-        and  set value = 
+        and  set value =
             let detection = if value then Quadrature else SinglePhase
             x.ExperimentParameters <- Parameters.withDetection detection x.ExperimentParameters
 

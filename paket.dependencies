@@ -1,0 +1,19 @@
+source https://nuget.org/api/v2
+
+nuget FSharp.Core redirects: force
+
+nuget Endorphin.Abstract
+nuget Endorphin.Instrument.PicoTech.PicoScope5000
+nuget Endorphin.Instrument.Twickenham.MagnetController
+
+nuget FSharp.ViewModule.Core
+nuget FSharp.Control.Reactive
+nuget csmpfit
+
+nuget Extended.Wpf.Toolkit
+nuget FsXaml.Wpf 0.9.9
+nuget FsPickler.Json
+nuget OxyPlot.Wpf ~> 1.0 prerelease
+
+github WarwickEPR/Endorphin.Core src/Endorphin.Core.Control.fs
+github WarwickEPR/Endorphin.Core src/Endorphin.Core.Reactive.fs
