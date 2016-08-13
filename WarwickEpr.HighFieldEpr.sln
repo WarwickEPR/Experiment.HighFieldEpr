@@ -12,13 +12,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{B8F1
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{DC63FD57-8C46-4D7A-B0F7-4F73801DA7FD}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "HighFieldEpr", "src\HighFieldEpr\HighFieldEpr.fsproj", "{2250C03C-40BA-4592-B424-28E7D7A2C79A}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{4ABA6009-84E6-478F-8CC7-4C53F94D14B4}"
 	ProjectSection(SolutionItems) = preProject
 		paket.dependencies = paket.dependencies
 		paket.lock = paket.lock
 	EndProjectSection
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "WarwickEpr.HighFieldEpr", "src\WarwickEpr.HighFieldEpr\WarwickEpr.HighFieldEpr.fsproj", "{2250C03C-40BA-4592-B424-28E7D7A2C79A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
