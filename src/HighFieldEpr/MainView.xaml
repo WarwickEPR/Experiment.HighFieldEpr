@@ -7,7 +7,7 @@
         xmlns:local="clr-namespace:HighFieldEpr;assembly=HighFieldEpr"
         xmlns:xctk="clr-namespace:Xceed.Wpf.Toolkit;assembly=Xceed.Wpf.Toolkit"
         xmlns:oxy="clr-namespace:OxyPlot.Wpf;assembly=OxyPlot.Wpf"
-        MinHeight="220" MinWidth="300" Height="Auto">
+        MinHeight="600" MinWidth="1024" Height="Auto">
     <UserControl.Resources>
         <fsxaml:BooleanToCollapsedConverter x:Key="TrueToCollapsed" />
         <Style x:Key="ControlBaseStyle" TargetType="{x:Type Control}">
@@ -24,7 +24,7 @@
         <Style TargetType="{x:Type xctk:DecimalUpDown}" BasedOn="{StaticResource ControlBaseStyle}"/>
         <Style TargetType="{x:Type xctk:IntegerUpDown}" BasedOn="{StaticResource ControlBaseStyle}"/>
     </UserControl.Resources>
-    <Grid >
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -40,7 +40,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="200"/>
+            <RowDefinition Height="170"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -48,7 +48,7 @@
             <ColumnDefinition Width="810" />
         </Grid.ColumnDefinitions>
 
-        <Menu Grid.ColumnSpan="3" Height="22" HorizontalAlignment="Left">
+        <Menu Grid.Row="0" Grid.Column="0" Height="22" HorizontalAlignment="Left" Grid.ColumnSpan="2" Width="258">
             <MenuItem Header="_File">
                 <MenuItem Header="_Save" Command="{Binding Save}" />
                 <MenuItem Header="_Load parameters" Command="{Binding LoadParameters}" />
@@ -62,9 +62,9 @@
             </MenuItem>
         </Menu>
 
-        <oxy:PlotView Grid.Row="2" Grid.RowSpan="13" Grid.Column="2" Model="{Binding PlotModel}"/>
+        <oxy:PlotView Grid.Row="0" Grid.RowSpan="15" Grid.Column="2" Model="{Binding PlotModel}"/>
 
-        <TextBlock Margin="10,4,10,4" Grid.Row="1" Grid.Column="0" Text="CW EPR experiment parameters" VerticalAlignment="Center" FontWeight="DemiBold" />
+        <TextBlock Margin="10,4,10,4" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Text="CW EPR experiment parameters" VerticalAlignment="Center" FontWeight="DemiBold" />
         <TextBlock Margin="10" Grid.Row="1" Grid.Column="2" Text="{Binding StatusMessage}" />
 
         <TextBlock Margin="10,4,10,4" Grid.Row="2" Grid.Column="0" Text="Centre field" VerticalAlignment="Center" />
