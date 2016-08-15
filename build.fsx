@@ -11,13 +11,13 @@ open Fake.UserInputHelper
 open System
 open System.IO
 
-let project = "HighFieldEpr"
+let project = "WarwickEpr.HighFieldEpr"
 let summary = "TODO"
 let description = "TODO"
 let authors = [ "University of Warwick EPR and Diamond group" ]
 let licenseHeader = "Copyright (c) University of Warwick. All Rights Reserved. Licensed under the Apache License, Version 2.0. See LICENSE.txt in the project root for license information."
 let tags = "fsharp science"
-let solutionFile  = "HighFieldEpr.sln"
+let solutionFile  = "WarwickEpr.HighFieldEpr.sln"
 let gitOwner = "WarwickDiamondEPR"
 let gitHome = "https://bitbucket.org/" + gitOwner
 let gitName = "HighFieldEpr"
