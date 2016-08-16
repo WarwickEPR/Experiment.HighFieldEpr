@@ -60,6 +60,32 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <ItemGroup>
+    <Compile Include="..\..\paket-files\WarwickEPR\Endorphin.Core\src\Endorphin.Core.Control.fs">
+      <Paket>True</Paket>
+      <Link>paket-files/Endorphin.Core.Control.fs</Link>
+    </Compile>
+    <Compile Include="..\..\paket-files\WarwickEPR\Endorphin.Core\src\Endorphin.Core.Reactive.fs">
+      <Paket>True</Paket>
+      <Link>paket-files/Endorphin.Core.Reactive.fs</Link>
+    </Compile>
+    <None Include="paket.references" />
+    <Compile Include="CwEprExperiment.fs" />
+    <Compile Include="ViewModel.fs" />
+    <Resource Include="MainView.xaml" />
+    <Compile Include="MainView.fs" />
+    <Resource Include="MainWindow.xaml" />
+    <Compile Include="MainWindow.fs" />
+    <Resource Include="App.xaml" />
+    <Compile Include="App.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Numerics" />
+  </ItemGroup>
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v2.0' Or $(TargetFrameworkVersion) == 'v3.0' Or $(TargetFrameworkVersion) == 'v3.5' Or $(TargetFrameworkVersion) == 'v4.0' Or $(TargetFrameworkVersion) == 'v4.5' Or $(TargetFrameworkVersion) == 'v4.5.1' Or $(TargetFrameworkVersion) == 'v4.5.2' Or $(TargetFrameworkVersion) == 'v4.5.3' Or $(TargetFrameworkVersion) == 'v4.6' Or $(TargetFrameworkVersion) == 'v4.6.1' Or $(TargetFrameworkVersion) == 'v4.6.2' Or $(TargetFrameworkVersion) == 'v4.6.3')">
       <ItemGroup>
@@ -409,24 +435,6 @@
         <Reference Include="FsXaml.Wpf">
           <HintPath>..\..\packages\FsXaml.Wpf\lib\net45\FsXaml.Wpf.dll</HintPath>
           <Private>True</Private>
-          <Paket>True</Paket>
-        </Reference>
-        <Reference Include="PresentationCore">
-          <Paket>True</Paket>
-        </Reference>
-        <Reference Include="PresentationFramework">
-          <Paket>True</Paket>
-        </Reference>
-        <Reference Include="System.Xaml">
-          <Paket>True</Paket>
-        </Reference>
-        <Reference Include="System.Xml">
-          <Paket>True</Paket>
-        </Reference>
-        <Reference Include="UIAutomationTypes">
-          <Paket>True</Paket>
-        </Reference>
-        <Reference Include="WindowsBase">
           <Paket>True</Paket>
         </Reference>
       </ItemGroup>
@@ -1480,7 +1488,7 @@
     </When>
   </Choose>
   <Choose>
-    <When Condition="$(TargetFrameworkIdentifier) == '.NETStandard' And $(TargetFrameworkVersion) == 'v1.6'">
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETStandard' And ($(TargetFrameworkVersion) == 'v1.5' Or $(TargetFrameworkVersion) == 'v1.6')">
       <ItemGroup>
         <Reference Include="System.Reflection.Emit.Lightweight">
           <HintPath>..\..\packages\System.Reflection.Emit.Lightweight\ref\netstandard1.0\System.Reflection.Emit.Lightweight.dll</HintPath>
@@ -1976,30 +1984,4 @@
       </ItemGroup>
     </When>
   </Choose>
-  <ItemGroup>
-    <Compile Include="..\..\paket-files\WarwickEPR\Endorphin.Core\src\Endorphin.Core.Control.fs">
-      <Paket>True</Paket>
-      <Link>paket-files/Endorphin.Core.Control.fs</Link>
-    </Compile>
-    <Compile Include="..\..\paket-files\WarwickEPR\Endorphin.Core\src\Endorphin.Core.Reactive.fs">
-      <Paket>True</Paket>
-      <Link>paket-files/Endorphin.Core.Reactive.fs</Link>
-    </Compile>
-    <None Include="paket.references" />
-    <Compile Include="CwEprExperiment.fs" />
-    <Compile Include="ViewModel.fs" />
-    <Resource Include="MainView.xaml" />
-    <Compile Include="MainView.fs" />
-    <Resource Include="MainWindow.xaml" />
-    <Compile Include="MainWindow.fs" />
-    <Resource Include="App.xaml" />
-    <Compile Include="App.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Numerics" />
-  </ItemGroup>
 </Project>

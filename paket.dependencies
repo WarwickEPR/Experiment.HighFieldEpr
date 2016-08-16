@@ -4,7 +4,7 @@ nuget FSharp.Core redirects: force
 
 nuget Endorphin.Abstract
 nuget Endorphin.Instrument.PicoTech.PicoScope5000
-nuget Endorphin.Instrument.Twickenham.MagnetController
+nuget Endorphin.Instrument.Twickenham.MagnetController >= 0.1.3
 
 nuget FSharp.ViewModule.Core
 nuget FSharp.Control.Reactive
